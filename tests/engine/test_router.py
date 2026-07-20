@@ -48,6 +48,23 @@ def test_exact_match_single_candidate(session_factory) -> None:
         assert result.reason == "exact_match"
 
 
+def test_exact_match_normalizes_stored_expert_topics_too(session_factory) -> None:
+    """Regression: exact-match must normalize both sides. An admin who types extra
+    whitespace/mixed case into shouldertap.yaml (e.g. "Revenue  Metrics") should still get an
+    exact match, not silently fall through to fuzzy matching (which mislabels the routing
+    reason and can miss entirely if token overlap happens to drop below 0.5).
+    """
+    with session_factory() as session:
+        upsert_expert(
+            session, expert_id="U1", name="Dana", topics=["Revenue  Metrics"], escalation_to=None
+        )
+        session.commit()
+
+        result = router.resolve(session, _config(), _request("revenue metrics"))
+        assert result.expert_id == "U1"
+        assert result.reason == "exact_match"
+
+
 def test_exact_match_load_balances_to_fewest_open_asks(session_factory) -> None:
     with session_factory() as session:
         upsert_expert(

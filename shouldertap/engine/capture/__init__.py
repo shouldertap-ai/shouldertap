@@ -135,13 +135,36 @@ def handle_reply(
     normalized = reply.text.strip().lower()
 
     if normalized == "mute":
+        # Muting is a standing, expert-level preference ("stop asking me anything ever"),
+        # independent of any one request's lifecycle -- unlike skip/amend below, it's honored
+        # even if this particular request already has a decided proposal.
         set_muted(session, reply.expert_id, True)
         append_audit_event(
             session, ts=clock.now(), request_id=request_row.id, actor=actor, event="expert.muted"
         )
         return CaptureOutcome(kind="mute", request_id=request_row.id)
 
+    # spec §7.5: "ignored after decision (but logged)" -- this must gate every request-specific
+    # action below (skip/amend/first-answer), not just the substantive-answer path, otherwise a
+    # stray `skip` arriving after a proposal was already accepted/rejected would still reroute
+    # and fire a brand-new ask to another expert for an already-resolved request.
+    existing_proposal = get_latest_proposal_for_request(session, request_row.id)
+    if existing_proposal is not None and existing_proposal.status != "pending":
+        append_audit_event(
+            session,
+            ts=clock.now(),
+            request_id=request_row.id,
+            actor=actor,
+            event="reply.received",
+            detail={"ignored": True, "reason": "already_decided"},
+        )
+        return CaptureOutcome(kind="ignored", request_id=request_row.id)
+
     if normalized == "skip":
+        # "expert.skipped" (not "expert.declined") per spec §10.2's literal audit-event list --
+        # written on every skip, terminal or not. The §4.4 reason code ReasonCode.EXPERT_DECLINED
+        # is reserved separately for when a skip has nowhere left to escalate to (below), which
+        # is what fails the whole request; a routine hop-along isn't itself a failure.
         append_audit_event(
             session,
             ts=clock.now(),
@@ -164,19 +187,6 @@ def handle_reply(
         return CaptureOutcome(kind="skip_rerouted", request_id=request_row.id, ask_outcome=outcome)
 
     if len(reply.text.strip()) <= 2:
-        return CaptureOutcome(kind="ignored", request_id=request_row.id)
-
-    existing_proposal = get_latest_proposal_for_request(session, request_row.id)
-    if existing_proposal is not None and existing_proposal.status != "pending":
-        # spec §7.5: "ignored after decision (but logged)".
-        append_audit_event(
-            session,
-            ts=clock.now(),
-            request_id=request_row.id,
-            actor=actor,
-            event="reply.received",
-            detail={"ignored": True, "reason": "already_decided"},
-        )
         return CaptureOutcome(kind="ignored", request_id=request_row.id)
 
     if existing_proposal is not None:

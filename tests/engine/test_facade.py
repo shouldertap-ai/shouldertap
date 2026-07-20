@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,7 @@ from shouldertap.engine.facade import Facade
 from shouldertap.engine.registry import RegistryConfig
 from shouldertap.engine.scheduler.core import make_scheduler
 from shouldertap.engine.store.engine import make_engine, make_session_factory
+from shouldertap.engine.store.mappers import row_to_proposal
 from shouldertap.engine.store.migrate import run_migrations
 from shouldertap.engine.store.repository import (
     get_request,
@@ -149,6 +150,66 @@ def test_golden_path_end_to_end(wiring) -> None:
             "proposal.accepted",
         ]:
             assert expected in events, f"missing audit event {expected}"
+
+
+def test_audit_trail_reconstructs_the_full_tap_in_order(wiring) -> None:
+    """spec §10.2: "The audit trail must reconstruct any tap end-to-end; this is a first-class
+    feature for the enterprise trust story." The golden-path test above checks that each
+    expected event is *present*; this one is the dedicated reconstruction test -- exact
+    ordering and actor attribution for every event of one full tap, not just membership.
+    """
+    session_factory, scheduler = wiring
+    clock = ManualClock()
+    transport = ConsoleTransport(interactive=False)
+    deliverer = ConsumerDeliverer()
+    callbacks = RecordingCallbacks()
+    _register_expert_and_consumer(session_factory, deliverer, callbacks)
+
+    facade = Facade(
+        session_factory=session_factory,
+        scheduler=scheduler,
+        config=_config(),
+        transport=transport,
+        llm_provider=FakeLLM(),
+        deliverer=deliverer,
+        clock=clock,
+    )
+
+    request = ContextRequest(
+        kind="glossary.definition",
+        topic="revenue metrics",
+        question="What does active customer mean?",
+        consumer="bi.assistant",
+    )
+    facade.submit_request(request)
+    transport.push_reply("paying accounts active in 90 days")
+    with session_factory() as session:
+        proposal_id = list_pending_proposals(session)[0].id
+    facade.accept_proposal(proposal_id=proposal_id, decided_by="alice")
+
+    with session_factory() as session:
+        events = list_audit_events(session, request.id)
+
+    # Exact chronological order, reconstructing the whole tap from just the audit log.
+    assert [e.event for e in events] == [
+        "request.received",
+        "routing.resolved",
+        "ask.sent",
+        "reply.received",
+        "proposal.created",
+        "proposal.accepted",
+    ]
+    # Actor format matches spec §10.2 exactly: system|expert:{id}|approver:{name}|consumer:{id}.
+    by_event = {e.event: e for e in events}
+    assert by_event["request.received"].actor == "consumer:bi.assistant"
+    assert by_event["routing.resolved"].actor == "system"
+    assert by_event["ask.sent"].actor == "system"
+    assert by_event["reply.received"].actor == "expert:U1"
+    assert by_event["proposal.created"].actor == "system"
+    assert by_event["proposal.accepted"].actor == "approver:alice"
+    # Timestamps are non-decreasing -- the log really is a chronological reconstruction.
+    timestamps = [e.ts for e in events]
+    assert timestamps == sorted(timestamps)
 
 
 def test_zero_llm_degrades_to_verbatim_question_and_null_structured(wiring) -> None:
@@ -382,3 +443,57 @@ def test_escalation_timer_reasks_configured_escalation_target(wiring) -> None:
         assert req.asked_expert_id == "U2"
         events = [e.event for e in list_audit_events(session, request.id)]
         assert "escalation.fired" in events
+
+    # spec §15 criterion 3: "their reply flows through; provenance `escalated=true`" -- the
+    # escalation target's own reply must produce a proposal whose provenance actually carries
+    # the flag, not just the request row.
+    transport.push_reply("paying accounts active in 90 days")
+    with session_factory() as session:
+        pending = list_pending_proposals(session)
+        assert len(pending) == 1
+        proposal = row_to_proposal(pending[0])
+        assert proposal.provenance.expert_id == "U2"
+        assert proposal.provenance.escalated is True
+
+
+def test_quiet_hours_sweep_releases_a_queued_ask_once_the_window_passes(wiring) -> None:
+    """spec §15 criterion 5: "quiet hours queue and release correctly" -- queuing alone isn't
+    enough; the sweep must actually flush a held request into a real delivery once the window
+    has passed, using the real facade (not a stub context), against a real queued request.
+    """
+    session_factory, scheduler = wiring
+    clock = ManualClock(datetime(2026, 1, 1, 20, 0))  # inside the 18:00-09:00 window
+    transport = ConsoleTransport(interactive=False)
+    deliverer = ConsumerDeliverer()
+    callbacks = RecordingCallbacks()
+    _register_expert_and_consumer(session_factory, deliverer, callbacks)
+
+    config = _config(defaults={"quiet_hours": ["18:00", "09:00"]})
+    facade = Facade(
+        session_factory=session_factory,
+        scheduler=scheduler,
+        config=config,
+        transport=transport,
+        llm_provider=FakeLLM(),
+        deliverer=deliverer,
+        clock=clock,
+    )
+
+    request = ContextRequest(
+        kind="glossary.definition",
+        topic="revenue metrics",
+        question="What does active customer mean?",
+        consumer="bi.assistant",
+    )
+    outcome = facade.submit_request(request)
+    assert outcome.status == "queued"
+    assert transport.sent_asks == []
+
+    clock.advance(timedelta(hours=13))  # now 09:00 the next day -- window just opened
+    facade.run_quiet_hours_sweep()
+
+    assert len(transport.sent_asks) == 1
+    with session_factory() as session:
+        req = get_request(session, request.id)
+        assert req.status == "asked"
+        assert req.asked_expert_id == "U1"

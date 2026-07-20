@@ -206,9 +206,23 @@ def upsert_expert(
     return row
 
 
+def _normalize_topic(text: str) -> str:
+    """Duplicates router.normalize()'s one-line rule rather than importing it -- router.py
+    already imports from this module, so importing back would be circular. Kept in sync by
+    inspection; both apply the same lowercase-and-collapse-whitespace rule.
+    """
+    return " ".join(text.lower().split())
+
+
 def list_experts_for_topic(session: Session, normalized_topic: str) -> list[ExpertRow]:
+    """spec §6 step 2: exact-match against expert `topics`. `normalized_topic` (the caller's
+    already-normalized query topic) must be compared against equally-normalized stored expert
+    topics -- comparing against raw, as-typed-in-YAML topic strings would silently miss exact
+    matches that differ only in case/whitespace (e.g. an admin typing "Revenue  Metrics"),
+    falling through to the fuzzy-match step and mislabeling the routing reason.
+    """
     experts = session.execute(select(ExpertRow)).scalars().all()
-    return [e for e in experts if normalized_topic in e.topics]
+    return [e for e in experts if normalized_topic in {_normalize_topic(t) for t in e.topics}]
 
 
 def list_all_experts(session: Session) -> list[ExpertRow]:

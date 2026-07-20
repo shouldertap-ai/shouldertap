@@ -122,6 +122,42 @@ def test_golden_path_over_http(client_and_transport) -> None:
         assert expected in events
 
 
+def test_get_request_returns_the_full_context_request(client_and_transport) -> None:
+    """Regression: GET /requests/{id} must return the *full* ContextRequest (spec §5), not a
+    hand-picked subset -- context, routing_policy, dedup_key, correlation, created_at, and
+    target_experts all need to survive the round trip, not just the status/proposal fields.
+    """
+    client, transport = client_and_transport
+
+    response = client.post(
+        "/api/v1/requests",
+        json={
+            "kind": "glossary.definition",
+            "topic": "revenue metrics",
+            "question": "What does active customer mean?",
+            "consumer": "bi.assistant",
+            "context": {"asked_because": "low confidence", "entity": "dim_customers.active_flag"},
+            "dedup_key": "glossary:dim_customers.active_flag",
+            "correlation": {"trace_id": "trace-123"},
+        },
+    )
+    request_id = response.json()["id"]
+
+    detail = client.get(f"/api/v1/requests/{request_id}").json()
+
+    assert detail["context"] == {
+        "asked_because": "low confidence",
+        "entity": "dim_customers.active_flag",
+    }
+    assert detail["dedup_key"] == "glossary:dim_customers.active_flag"
+    assert detail["correlation"] == {"trace_id": "trace-123"}
+    assert detail["routing_policy"]["priority"] == 50
+    assert "created_at" in detail
+    # store/runtime fields (not part of the wire ContextRequest contract) are still present too
+    assert detail["status"] == "asked"  # a real expert is registered, so routing fires inline
+    assert detail["subscribers"] == ["bi.assistant"]
+
+
 def test_reject_proposal_over_http(client_and_transport) -> None:
     client, transport = client_and_transport
 

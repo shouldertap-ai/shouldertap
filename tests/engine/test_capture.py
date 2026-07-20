@@ -420,3 +420,60 @@ def test_reply_after_decision_is_ignored_but_logged(session_factory, scheduler, 
         events = list_audit_events(session, request.id)
         ignored_events = [e for e in events if e.detail and e.detail.get("ignored")]
         assert len(ignored_events) == 1
+
+
+def test_skip_after_decision_is_ignored_not_rerouted(session_factory, scheduler, deliverer) -> None:
+    """Regression: a `skip` arriving after the proposal was already accepted must not reroute
+    and fire a brand-new ask for an already-resolved request -- unlike `mute`, which is a
+    standing expert-level preference and stays honored regardless of any request's state.
+    """
+    request = _seed_asked_request(session_factory)
+    config = _config()
+    clock = ManualClock()
+    transport = ConsoleTransport(interactive=False)
+
+    with session_factory() as session:
+        first = capture.handle_reply(
+            session,
+            scheduler,
+            config,
+            transport,
+            None,
+            deliverer,
+            clock,
+            IncomingReply(
+                thread_ref="thread-1", expert_id="U1", text="first answer", received_at=clock.now()
+            ),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        decide_proposal(
+            session,
+            first.proposal_id,
+            status="accepted",
+            decided_by="alice",
+            decided_at=clock.now(),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        outcome = capture.handle_reply(
+            session,
+            scheduler,
+            config,
+            transport,
+            None,
+            deliverer,
+            clock,
+            IncomingReply(
+                thread_ref="thread-1", expert_id="U1", text="skip", received_at=clock.now()
+            ),
+        )
+        session.commit()
+
+    assert outcome.kind == "ignored"
+    assert transport.sent_asks == []  # no reroute fired
+    with session_factory() as session:
+        events = [e.event for e in list_audit_events(session, request.id)]
+        assert "expert.skipped" not in events

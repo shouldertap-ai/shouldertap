@@ -114,7 +114,10 @@ ask_expert(question: str, topic: str, kind: str = "freeform.answer",
 
 `answer` is present only when the call immediately resolved via a dedup hit against an already-
 accepted proposal; otherwise the answer arrives out-of-band and the caller polls or waits for
-its own consumer callback.
+its own consumer callback. `status` mirrors whatever `POST /requests` returned (`queued`,
+`deduped_resolved`, `deduped_open`, or `failed`) rather than being narrowed to just
+`"queued"|"deduped_resolved"` -- surfacing the real state seemed better than hiding it, at the
+cost of being a slightly wider contract than the two values called out above.
 
 ```
 check_answer(request_id: str) -> { status: str, answer?: object }

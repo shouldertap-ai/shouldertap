@@ -22,7 +22,13 @@ Kind = str
 
 
 class ReasonCode(StrEnum):
-    """Spec §4.4 -- the exact enumerated failure reasons."""
+    """Spec §4.4 -- the exact enumerated failure reasons. TIMEOUT/NO_EXPERT_FOUND/
+    EXPERT_DECLINED/RATE_LIMITED are all reachable in v0.1 (see facade.py/capture.py).
+    CANCELLED and ERROR are part of the contract but currently unreachable: v0.1 has no cancel
+    endpoint/CLI verb (not spec-mandated), and unexpected failures degrade gracefully rather
+    than surfacing as a generic error (e.g. LLM failures -> structured=null, not a failed
+    request) -- kept in the enum for wire-compatibility with future versions that add either.
+    """
 
     TIMEOUT = "timeout"
     NO_EXPERT_FOUND = "no_expert_found"
@@ -136,6 +142,9 @@ class ConsumerRegistration(BaseModel):
     """Spec §4.3: id, handles_kinds, delivery (webhook URL or SDK callback), dedup_window."""
 
     id: str
+    # Declarative only in v0.1: delivery is driven entirely by each request's `subscribers`
+    # list (the submitting consumer plus any dedup fan-out), not by broadcasting to every
+    # consumer registered for a given kind -- nothing in the spec calls for that.
     handles_kinds: list[Kind]
     delivery: Delivery
     dedup_window: timedelta = timedelta(hours=24)
