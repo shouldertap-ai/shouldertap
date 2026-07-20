@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "Provenance": {
+      "description": "Spec \u00a74.2.",
+      "properties": {
+        "answered_at": {
+          "format": "date-time",
+          "title": "Answered At",
+          "type": "string"
+        },
+        "answered_via": {
+          "title": "Answered Via",
+          "type": "string"
+        },
+        "escalated": {
+          "default": false,
+          "title": "Escalated",
+          "type": "boolean"
+        },
+        "expert_id": {
+          "title": "Expert Id",
+          "type": "string"
+        },
+        "expert_name": {
+          "title": "Expert Name",
+          "type": "string"
+        },
+        "slack_thread_ts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slack Thread Ts"
+        }
+      },
+      "required": [
+        "expert_id",
+        "expert_name",
+        "answered_via",
+        "answered_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
+  "description": "Spec \u00a74.2.",
+  "properties": {
+    "answer": {
+      "title": "Answer",
+      "type": "string"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "consumer": {
+      "title": "Consumer",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "structured": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Structured"
+    }
+  },
+  "required": [
+    "request_id",
+    "kind",
+    "answer",
+    "provenance",
+    "consumer"
+  ],
+  "title": "ContextProposal",
+  "type": "object"
+}

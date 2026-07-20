@@ -1,0 +1,1 @@
+Everything in this repository is free forever and will never move behind a paywall. The commercial product is the hosted control plane — multi-workspace management, SSO/audit/compliance, learned routing, and expert-load analytics — built on this same engine and protocol.

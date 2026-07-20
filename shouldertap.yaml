@@ -1,0 +1,40 @@
+# Example ShoulderTap config. Copy/edit this for your own org -- `shtap init` generates a
+# starting point for you. Secrets are never inlined here: every *_env key names an
+# environment variable (see .env.example) that's resolved at runtime, loaded from a local
+# .env file (gitignored) next to this config.
+
+org:
+  name: "Acme Data Team"
+  timezone: "America/Los_Angeles"
+
+llm:
+  model: "claude-sonnet-4-6"
+  api_key_env: "ANTHROPIC_API_KEY"
+
+slack:
+  bot_token_env: "SLACK_BOT_TOKEN"
+  signing_secret_env: "SLACK_SIGNING_SECRET"
+
+server:
+  port: 8776
+  api_token_env: "SHOULDERTAP_API_TOKEN"
+
+defaults:
+  escalation_after: 2h
+  give_up_after: 24h
+  quiet_hours: ["18:00", "09:00"] # local time; no DMs outside, queue instead
+  max_open_asks_per_expert: 3 # hard cap on concurrent unanswered asks
+  max_asks_per_expert_per_day: 5 # hard daily cap
+
+experts:
+  - id: U0123ABC # Slack user ID
+    name: Dana Kim
+    topics: ["revenue metrics", "customer definitions"]
+    escalation_to: U0456DEF
+  - id: U0456DEF
+    name: Marco Ruiz
+    topics: ["revenue metrics"] # also Dana's escalation target
+
+topics:
+  "revenue metrics":
+    fallback: U0456DEF

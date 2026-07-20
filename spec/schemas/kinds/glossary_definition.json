@@ -1,0 +1,24 @@
+{
+  "properties": {
+    "caveats": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "definition": {
+      "type": "string"
+    },
+    "examples": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "definition",
+    "caveats"
+  ],
+  "type": "object"
+}

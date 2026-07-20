@@ -1,0 +1,163 @@
+{
+  "$defs": {
+    "RoutingPolicy": {
+      "description": "Spec \u00a74.1. Durations are ISO-8601 (e.g. \"PT2H\"); Pydantic parses these into timedelta.\nAny field left unset is filled from shouldertap.yaml's `defaults:` section by the router.",
+      "properties": {
+        "escalation_after": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Escalation After"
+        },
+        "escalation_targets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Escalation Targets",
+          "type": "array"
+        },
+        "give_up_after": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Give Up After"
+        },
+        "primary_experts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Primary Experts",
+          "type": "array"
+        },
+        "priority": {
+          "default": 50,
+          "title": "Priority",
+          "type": "integer"
+        }
+      },
+      "title": "RoutingPolicy",
+      "type": "object"
+    },
+    "TargetExpert": {
+      "properties": {
+        "expert_id": {
+          "title": "Expert Id",
+          "type": "string"
+        },
+        "role": {
+          "default": "primary",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expert_id"
+      ],
+      "title": "TargetExpert",
+      "type": "object"
+    }
+  },
+  "description": "Spec \u00a74.1.",
+  "properties": {
+    "consumer": {
+      "title": "Consumer",
+      "type": "string"
+    },
+    "context": {
+      "additionalProperties": true,
+      "title": "Context",
+      "type": "object"
+    },
+    "correlation": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Correlation"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dedup_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dedup Key"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "org_id": {
+      "default": "default",
+      "title": "Org Id",
+      "type": "string"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "routing_policy": {
+      "$ref": "#/$defs/RoutingPolicy"
+    },
+    "target_experts": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/TargetExpert"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Experts"
+    },
+    "topic": {
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "topic",
+    "question",
+    "consumer"
+  ],
+  "title": "ContextRequest",
+  "type": "object"
+}

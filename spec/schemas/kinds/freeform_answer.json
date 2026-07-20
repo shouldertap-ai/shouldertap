@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "details": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "summary"
+  ],
+  "type": "object"
+}

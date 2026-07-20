@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "InProcessDelivery": {
+      "description": "Marker for an SDK-embedded consumer whose callables are registered in-process and\nare never serialized -- see shouldertap/sdk/client.py.",
+      "properties": {
+        "type": {
+          "const": "inprocess",
+          "default": "inprocess",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "InProcessDelivery",
+      "type": "object"
+    },
+    "WebhookDelivery": {
+      "properties": {
+        "type": {
+          "const": "webhook",
+          "default": "webhook",
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "WebhookDelivery",
+      "type": "object"
+    }
+  },
+  "description": "Spec \u00a74.3: id, handles_kinds, delivery (webhook URL or SDK callback), dedup_window.",
+  "properties": {
+    "auto_accept": {
+      "default": false,
+      "title": "Auto Accept",
+      "type": "boolean"
+    },
+    "dedup_window": {
+      "default": "P1D",
+      "format": "duration",
+      "title": "Dedup Window",
+      "type": "string"
+    },
+    "delivery": {
+      "discriminator": {
+        "mapping": {
+          "inprocess": "#/$defs/InProcessDelivery",
+          "webhook": "#/$defs/WebhookDelivery"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/WebhookDelivery"
+        },
+        {
+          "$ref": "#/$defs/InProcessDelivery"
+        }
+      ],
+      "title": "Delivery"
+    },
+    "handles_kinds": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Handles Kinds",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind_schemas": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Kind Schemas",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "handles_kinds",
+    "delivery"
+  ],
+  "title": "ConsumerRegistration",
+  "type": "object"
+}
