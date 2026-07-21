@@ -1,0 +1,74 @@
+name: Publish to PyPI
+
+# Publishes on a GitHub Release. Uses PyPI Trusted Publishing (OIDC) rather than a stored
+# API token: no long-lived secret ever lives in this repo. One-time setup is required on the
+# PyPI side before the first run -- see RELEASING.md.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      # Never publish something that doesn't pass its own tests.
+      - run: uv sync
+      - run: uv run pytest -q
+      - run: uv run mypy --strict shouldertap/
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+      # The wheel-install acceptance test is the one that catches "file wasn't packaged"
+      # bugs an editable install can't see -- it is the whole point of gating a release.
+      - run: uv run pytest tests/acceptance/test_wheel_install.py -q -m slow
+
+      - run: uv build
+      - run: uv run --with twine twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: build
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

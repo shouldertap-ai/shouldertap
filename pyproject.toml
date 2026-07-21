@@ -4,8 +4,21 @@ version = "0.1.0"
 description = "The missing layer between AI agents and the humans who hold undocumented knowledge."
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 authors = [{ name = "Shadi Copty" }]
+keywords = ["slack", "ai-agents", "mcp", "knowledge-management", "human-in-the-loop"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -25,6 +38,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/shouldertap-ai/shouldertap"
+Repository = "https://github.com/shouldertap-ai/shouldertap"
+Issues = "https://github.com/shouldertap-ai/shouldertap/issues"
+Changelog = "https://github.com/shouldertap-ai/shouldertap/releases"
 
 [project.scripts]
 shtap = "shouldertap.cli.main:main"
@@ -49,7 +65,9 @@ dev = [
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
-exclude = ["^alembic/"]
+# Alembic's generated env.py/migration scripts follow their own conventions (module-level
+# side effects, untyped `op`/`sa` usage) and aren't application code.
+exclude = ["^shouldertap/migrations/"]
 
 [[tool.mypy.overrides]]
 module = ["apscheduler.*", "slack_bolt.*", "litellm.*", "mcp.*"]
@@ -58,7 +76,7 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-extend-exclude = ["alembic/versions"]
+extend-exclude = ["shouldertap/migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

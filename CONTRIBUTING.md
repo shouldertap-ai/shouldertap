@@ -22,6 +22,18 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
+`uv run pytest` skips tests marked `slow` (they build real venvs and install real wheels). Run
+them explicitly when touching packaging, the CLI, or startup:
+
+```bash
+uv run pytest -m slow
+```
+
+Anything the engine loads from disk at runtime — Alembic migrations, prompt templates, the
+approval-UI assets — **must live inside `shouldertap/`**, or it won't be in the wheel and
+`pip install shouldertap` will break even though every other test passes.
+`tests/acceptance/test_wheel_install.py` is what enforces this; see [RELEASING.md](RELEASING.md).
+
 ## Code style
 
 - Type-checked with `mypy --strict`; keep it clean rather than reaching for `# type: ignore`.

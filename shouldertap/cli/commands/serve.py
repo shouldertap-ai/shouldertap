@@ -28,9 +28,16 @@ from shouldertap.server.app import create_app
     "slack requires a `slack:` section in the config plus SLACK_BOT_TOKEN/SLACK_SIGNING_SECRET.",
 )
 @click.option("--host", default="0.0.0.0", show_default=True)
-def serve(config_path: Path, transport: str, host: str) -> None:
+@click.option(
+    "--port",
+    type=int,
+    default=None,
+    help="Override the port from shouldertap.yaml's `server.port` (default 8776).",
+)
+def serve(config_path: Path, transport: str, host: str, port: int | None) -> None:
     """Run the engine, HTTP API, and approval UI."""
     config = load_config(config_path)
+    resolved_port = port if port is not None else config.server.port
 
     resolved_transport: Transport
     if transport == "slack":
@@ -47,5 +54,5 @@ def serve(config_path: Path, transport: str, host: str) -> None:
         resolved_transport = ConsoleTransport(interactive=True)
 
     app = create_app(config_path, transport=resolved_transport)
-    click.echo(f"ShoulderTap serving on http://{host}:{config.server.port} (transport={transport})")
-    uvicorn.run(app, host=host, port=config.server.port)
+    click.echo(f"ShoulderTap serving on http://{host}:{resolved_port} (transport={transport})")
+    uvicorn.run(app, host=host, port=resolved_port)

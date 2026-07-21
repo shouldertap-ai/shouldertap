@@ -50,6 +50,11 @@ and are implemented directly in this directory.
 8. Fresh-machine setup: `pip install -e . && shtap init && shtap serve` reaches a demo
    -- test_fresh_machine.py::test_pip_install_init_and_serve_reach_a_working_demo
       (the one criterion with no other home; a real subprocess test, not an in-process one)
+   -- test_wheel_install.py::test_wheel_install_ships_migrations_and_assets_and_serves
+      (goes beyond the criterion's literal `-e .` wording to cover spec §2's actual promise,
+      "`pip install shouldertap` ... = running": an *editable* install still sees the source
+      tree, so it structurally cannot catch files that aren't in the wheel -- which is exactly
+      how the Alembic migrations shipped broken until an audit caught it)
 
 9. mypy --strict and ruff clean
    -- test_lint_and_types.py (runs over the whole `shouldertap/` package, not just the
