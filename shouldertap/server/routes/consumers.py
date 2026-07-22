@@ -25,7 +25,13 @@ def register_consumer(
     return {"id": registration.id}
 
 
-@router.delete("/consumers/{consumer_id}", status_code=204)
+# response_model=None is load-bearing, not decoration: this module uses
+# `from __future__ import annotations`, so `-> None` reaches FastAPI as the *string* "None".
+# FastAPI < ~0.117 resolves that into a truthy response model and then trips its own
+# "Status code 204 must not have a response body" assertion at import time -- taking down the
+# whole CLI, since `shtap` imports the server module. Stating it explicitly keeps this working
+# across the full `fastapi>=0.115` range we declare.
+@router.delete("/consumers/{consumer_id}", status_code=204, response_model=None)
 def unregister_consumer(
     consumer_id: str, session_factory: sessionmaker[Session] = Depends(get_session_factory)
 ) -> None:

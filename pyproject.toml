@@ -1,6 +1,6 @@
 [project]
 name = "shouldertap"
-version = "0.1.0"
+version = "0.1.1"
 description = "The missing layer between AI agents and the humans who hold undocumented knowledge."
 readme = "README.md"
 license = "Apache-2.0"
@@ -19,6 +19,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Typing :: Typed",
 ]
+# These lower bounds are verified, not guessed: CI's `min-deps` job resolves every direct
+# dependency to its floor (`uv sync --resolution lowest-direct`) and runs the suite there.
+# Several of these were originally too low to actually work -- see that job before lowering one.
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -28,12 +31,12 @@ dependencies = [
     "litellm>=1.50",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
-    "apscheduler>=3.10,<4",
-    "pyyaml>=6.0",
+    "apscheduler>=3.11,<4",  # 3.10 imports pkg_resources, gone from modern Python
+    "pyyaml>=6.0.2",  # 6.0/6.0.1 fail to build on Python 3.12+
     "python-dotenv>=1.0",
     "click>=8.1",
     "httpx>=0.27",
-    "mcp>=1.0",
+    "mcp>=1.2",  # mcp.server.fastmcp did not exist before 1.2
 ]
 
 [project.urls]
