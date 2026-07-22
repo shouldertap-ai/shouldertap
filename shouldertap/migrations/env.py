@@ -4,9 +4,9 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
+from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
 from shouldertap.engine.store.engine import database_url_for
 from shouldertap.engine.store.models import Base
 

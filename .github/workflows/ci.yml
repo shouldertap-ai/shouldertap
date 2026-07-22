@@ -8,13 +8,35 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - run: uv sync
-      - run: uv run pytest -q
-      - run: uv run mypy --strict shouldertap/
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
+      - run: uv sync --python ${{ matrix.python-version }}
+      - run: uv run --python ${{ matrix.python-version }} pytest -q
+      - run: uv run --python ${{ matrix.python-version }} mypy --strict shouldertap/
+      - run: uv run --python ${{ matrix.python-version }} ruff check .
+      - run: uv run --python ${{ matrix.python-version }} ruff format --check .
+
+  # `uv sync` alone always resolves to the *newest* compatible release, so the lower bounds in
+  # pyproject.toml are otherwise an untested claim. They were, in fact, wrong: shouldertap
+  # 0.1.0 shipped declaring fastapi>=0.115 but crashed on import under 0.116, and named three
+  # other floors that could not even be installed. This job is what keeps them honest.
+  min-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --resolution lowest-direct
+      - run: uv run --no-sync python -c "import fastapi, pydantic, sqlalchemy; print(fastapi.__version__, pydantic.VERSION, sqlalchemy.__version__)"
+      # Deselect the schema-drift check: it compares Pydantic's generated JSON Schema
+      # byte-for-byte, and that formatting legitimately differs between Pydantic releases.
+      # Drift is still enforced by the `test` job above, at pinned versions.
+      - run: uv run --no-sync pytest -q --deselect tests/acceptance/test_schema_drift.py

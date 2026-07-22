@@ -8,6 +8,10 @@ import click
 
 from shouldertap.cli.options import config_option
 
+# A URL, not a repo-relative path: someone who ran `pip install shouldertap` has no checkout,
+# so pointing them at "slack/manifest.yaml" would be a dead end.
+SLACK_MANIFEST_URL = "https://github.com/shouldertap-ai/shouldertap/blob/main/slack/manifest.yaml"
+
 _CONFIG_TEMPLATE = """org:
   name: "{org_name}"
   timezone: "UTC"
@@ -55,10 +59,10 @@ def init(config_path: Path, org_name: str) -> None:
     click.echo("Next steps:")
     click.echo("  1. Copy .env.example to .env and fill in real values (.env is gitignored).")
     click.echo(
-        "  2. (Optional, for real Slack DMs) Create a Slack app from slack/manifest.yaml at "
-        'https://api.slack.com/apps -> "Create New App" -> "From an app manifest", '
-        "then copy the Bot User OAuth Token into SLACK_BOT_TOKEN and the Signing Secret into "
-        "SLACK_SIGNING_SECRET."
+        "  2. (Optional, for real Slack DMs) Create a Slack app at https://api.slack.com/apps "
+        '-> "Create New App" -> "From an app manifest", pasting in the manifest from '
+        f"{SLACK_MANIFEST_URL} -- then copy the Bot User OAuth Token into SLACK_BOT_TOKEN and "
+        "the Signing Secret into SLACK_SIGNING_SECRET."
     )
     click.echo(f"  3. Add your experts to the `experts:` section of {config_path}.")
     click.echo(
